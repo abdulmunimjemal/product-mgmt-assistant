@@ -1,33 +1,79 @@
 import tweepy
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
+from datetime import datetime, timedelta
+import re
 
 load_dotenv()
 
-X_CONSUMER_KEY = os.getenv("X_CONSUMER_KEY")
-X_CONSUMER_SECRET = os.getenv("X_CONSUMER_SECRET")
-X_ACCESS_TOKEN = os.getenv("X_ACCESS_TOKEN")
-X_ACCESS_TOKEN_SECRET = os.getenv("X_ACCESS_TOKEN_SECRET")
+X_BEARER_TOKEN = os.getenv("X_BEARER_TOKEN")
 
-if not X_CONSUMER_KEY or not X_CONSUMER_SECRET or not X_ACCESS_TOKEN or not X_ACCESS_TOKEN_SECRET:
-    raise ValueError("Missing Twitter API keys")
+if not X_BEARER_TOKEN:
+    raise ValueError("Bearer Token not found")
+
+client = tweepy.Client(bearer_token=X_BEARER_TOKEN, wait_on_rate_limit=False)
 
 
-auth = tweepy.OAuth1UserHandler(
-    X_CONSUMER_KEY, X_CONSUMER_SECRET, X_ACCESS_TOKEN, X_ACCESS_TOKEN_SECRET
-)
-api = tweepy.API(auth)
-
-try:
-    assert api.verify_credentials().screen_name != None
-except:
-    raise ValueError("Invalid Twitter API keys")
-
-def fetch_tweets(product: str, max_tweets: int):
-    tweets = api.search(
-        q=product,
-        count=max_tweets,
-        result_type="recent",
-        tweet_mode="extended",
-        lang="en",
+def fetch_tweets(product: str, time_period: str, max_tweets: int = 3):
+    """
+    Fetch tweets matching the product query from within a given time period.
+    
+    Parameters:
+        product (str): The search query.
+        time_period (str): Time period string like '1d', '30m', '1h' etc.
+        max_tweets (int): Maximum number of tweets to fetch.
+    
+    Returns:
+        List[tweepy.Tweet]: Tweets sorted in descending order of retweet count.
+    """
+    # Parse the time period string (e.g., '1d', '30m', '1h')
+    match = re.match(r"(\d+)([dhm])", time_period)
+    if not match:
+        raise ValueError("Invalid time period format. Use formats like '1d', '30m', '1h', etc.")
+    value, unit = match.groups()
+    value = int(value)
+    
+    # Determine the appropriate timedelta based on unit
+    if unit == "d":
+        delta = timedelta(days=value)
+    elif unit == "h":
+        delta = timedelta(hours=value)
+    elif unit == "m":
+        delta = timedelta(minutes=value)
+    else:
+        raise ValueError("Unsupported time period unit")
+    
+    # Calculate the start time (UTC) for the search query
+    now = datetime.utcnow()
+    start_time = now - delta
+    start_time_str = start_time.isoformat("T") + "Z"  # Twitter expects ISO 8601 format
+    
+    # Perform the tweet search; note that in Twitter API v2, use query and start_time parameters.
+    tweets_response = client.search_recent_tweets(
+        query=product,
+        start_time=start_time_str,
+        max_results=max_tweets,
+        sort_order="relevancy",
+        tweet_fields=["public_metrics", "created_at", "lang", "source"]
     )
+    
+    # If no tweets are found, return an empty list.
+    if tweets_response.data is None:
+        return []
+    
+    tweets = tweets_response.data
+
+    formatted_tweets = []
+    for tweet in tweets:
+        formatted_tweets.append(
+            {
+                "text": tweet.text,
+                "retweets": tweet.public_metrics.get('retweet_count', 'NaN'),
+                "replies": tweet.public_metrics.get('reply_count', 'NaN'),
+                "likes": tweet.public_metrics.get('like_count', 'NaN'),
+                "created_at": tweet.created_at,
+                "lang": tweet.lang
+            }
+        )
+    
+    return formatted_tweets
