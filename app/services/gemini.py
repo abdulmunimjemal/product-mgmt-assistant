@@ -10,18 +10,14 @@ logger.setLevel(logging.INFO)
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-PRIORITY_RULES = os.getenv("PRIORITY_RULE")
-PRODUCT_DESCRIPTION = os.getenv("PRODUCT_DESCRIPTION", "Our Product")
 
 if not GEMINI_API_KEY:
     raise ValueError("Missing GEMINI_API_KEY environment variable.")
-if PRODUCT_DESCRIPTION == "Our Product":
-    logger.warning("PRODUCT_DESCRIPTION environment variable is not set. Using default value 'Our Product'.")
 
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-2.0-flash")
 
-def post_to_card(x_post):
+def post_to_card(x_post: dict, prioritization_rule: dict, product_description: str):
     """
     Use Gemini to classify an X post.
     
@@ -42,16 +38,13 @@ def post_to_card(x_post):
     prompt = f"""
 You are an intelligent assistant that determines if an X post (tweet) should be added as a Trello card for a product development.
 Here are the dynamic priority rules: (If not set, use your own judgement)
-{json.dumps(PRIORITY_RULES, indent=2)}
-
-Here is the product description:
-{PRODUCT_DESCRIPTION}
+    Prioritization Rule: {json.dumps(prioritization_rule, indent=2)}
+Product description: {product_description}
 
 The X post has these properties:
 - text: {x_post.get("text", "")}
 - likes: {x_post.get("likes", 0)}
 - retweets: {x_post.get("retweets", 0)}
-- source: {x_post.get("source", "")} (Ignore if N/A)
 
 Based on the above, generate a structured JSON output that meets the following:
 1. "add": A boolean indicating whether to add the post as a Trello card. The post must be relevant to the product and must be one of the defined request types below.
@@ -116,6 +109,8 @@ if __name__ == "__main__":
         "retweets": 75
     }
 
-    classification = post_to_card(x_post_example, gemini_rules)
-    print("Gemini classification result:")
-    print(classification)
+    classification = post_to_card(x_post_example, gemini_rules, "Product ABC: A revolutionary new product.")
+    if classification["success"]:
+        print(json.dumps(classification["result"], indent=2))
+    else:
+        print("Error:", classification["error"])

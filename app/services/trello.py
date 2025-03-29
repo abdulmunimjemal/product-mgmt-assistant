@@ -1,28 +1,4 @@
-import os
-from dotenv import load_dotenv
 import requests
-
-# Load environment variables from .env file
-load_dotenv()
-
-# Retrieve environment variables
-API_KEY = os.getenv('TRELLO_API_KEY')
-TOKEN = os.getenv('TRELLO_TOKEN')
-BOARD_ID = os.getenv('TRELLO_BOARD_ID')          # Optional: Use this if you already have a board id
-BOARD_NAME = os.getenv('TRELLO_BOARD_NAME')      # Optional: Use this if you want to create/find a board by name
-LIST_NAME = os.getenv('TRELLO_LIST_NAME') or "Social Media Sentiments"
-
-# Check that critical credentials exist
-missing_vars = []
-if not API_KEY:
-    missing_vars.append('TRELLO_API_KEY')
-if not TOKEN:
-    missing_vars.append('TRELLO_TOKEN')
-if not (BOARD_ID or BOARD_NAME):
-    missing_vars.append('TRELLO_BOARD_ID or TRELLO_BOARD_NAME')
-
-if missing_vars:
-    raise ValueError(f"Missing environment variables: {', '.join(missing_vars)}")
 
 def get_or_create_board(api_key, token, board_id=None, board_name=None):
     """
@@ -111,7 +87,7 @@ def get_or_create_list(api_key, token, board_id, list_name):
     print(f"Created list '{list_name}' with id {new_list['id']}.")
     return new_list['id']
 
-def create_trello_ticket_with_priority(api_key, token, board_id, list_name, card_name, priority, card_desc=None):
+def create_trello_ticket_with_priority(api_key: str, token: str, board_id: str, list_name: str, card_name: str, priority: str, description: str = ""):
     """
     Create a Trello card in the specified list. The card's name will include the given priority.
     
@@ -127,38 +103,39 @@ def create_trello_ticket_with_priority(api_key, token, board_id, list_name, card
     Returns:
         dict: The JSON response from the Trello API with details about the created card.
     """
-    # Get or create the list on the board.
-    list_id = get_or_create_list(api_key, token, board_id, list_name)
-    
-    # Prepend the priority to the card name.
-    card_name_with_priority = f"[{priority}] {card_name}"
-    
-    # URL to create a new card.
-    create_card_url = "https://api.trello.com/1/cards"
-    card_params = {
-        'key': api_key,
-        'token': token,
-        'idList': list_id,
-        'name': card_name_with_priority
-    }
-    if card_desc:
-        card_params['desc'] = card_desc
-
-    response = requests.post(create_card_url, params=card_params)
-    response.raise_for_status()
-    
-    card_info = response.json()
-    print(f"Created card '{card_name_with_priority}' in list '{list_name}'.")
-    return card_info
-
-def add_trello_card(CARD_NAME, PRIORITY, CARD_DESC):
-    # Get or create the board using either provided board id or board name.
-    board_id = get_or_create_board(API_KEY, TOKEN, board_id=BOARD_ID, board_name=BOARD_NAME)
     try:
-        new_card = create_trello_ticket_with_priority(API_KEY, TOKEN, board_id, LIST_NAME, CARD_NAME, PRIORITY, CARD_DESC)
+        # Get or create the list on the board.
+        list_id = get_or_create_list(api_key, token, board_id, list_name)
+        
+        # Prepend the priority to the card name.
+        card_name_with_priority = f"[{priority}] {card_name}"
+        
+        # URL to create a new card.
+        create_card_url = "https://api.trello.com/1/cards"
+        card_params = {
+            'key': api_key,
+            'token': token,
+            'idList': list_id,
+            'name': card_name_with_priority
+        }
+        if description:
+            card_params['desc'] = description
+
+        response = requests.post(create_card_url, params=card_params)
+        response.raise_for_status()
+        return {"success": True, "card": response.json()}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def add_trello_card(api_key: str, token: str, list_name: str, priority: str, card_name: str, card_desc: str,  board_id: str = None, board_name: str = None):
+    # Get or create the board using either provided board id or board name.
+
+    if not board_id and not board_name:
+        return {"success": False, "error": "Either board_id or board_name must be provided" }
+
+    board_id = get_or_create_board(api_key, token, board_id=board_id, board_name=board_name)
+    try:
+        new_card = create_trello_ticket_with_priority(api_key, token, board_id, list_name, card_name, priority, card_desc)
         return {"success": True, "card": new_card}
     except requests.exceptions.HTTPError as err:
         return {"success": False, "error": str(err)}
-
-# Example usage
-add_trello_card("Test Card", "High", "This is a test card created from Python.")

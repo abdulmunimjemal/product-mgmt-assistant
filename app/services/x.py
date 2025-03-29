@@ -1,20 +1,14 @@
 import tweepy
-import os
-from dotenv import load_dotenv
+from core.config import settings
 from datetime import datetime, timedelta
 import re
 
-load_dotenv()
 
-X_BEARER_TOKEN = os.getenv("X_BEARER_TOKEN")
-
-if not X_BEARER_TOKEN:
-    raise ValueError("Bearer Token not found")
+X_BEARER_TOKEN = settings.X_BEARER_TOKEN
 
 client = tweepy.Client(bearer_token=X_BEARER_TOKEN, wait_on_rate_limit=False)
 
-
-def fetch_tweets(product: str, time_period: str, max_tweets: int = 3):
+def fetch_tweets(product: str, time_period: str, max_tweets: int = 10):
     """
     Fetch tweets matching the product query from within a given time period.
     
@@ -41,21 +35,24 @@ def fetch_tweets(product: str, time_period: str, max_tweets: int = 3):
     elif unit == "m":
         delta = timedelta(minutes=value)
     else:
-        raise ValueError("Unsupported time period unit")
-    
+        return {"success": False, "error": "Unsupported time period unit " + unit + ". Use 'd', 'h', or 'm'."}
+        
     # Calculate the start time (UTC) for the search query
     now = datetime.utcnow()
     start_time = now - delta
     start_time_str = start_time.isoformat("T") + "Z"  # Twitter expects ISO 8601 format
     
     # Perform the tweet search; note that in Twitter API v2, use query and start_time parameters.
-    tweets_response = client.search_recent_tweets(
-        query=product,
-        start_time=start_time_str,
-        max_results=max_tweets,
-        sort_order="relevancy",
-        tweet_fields=["public_metrics", "created_at", "lang", "source"]
-    )
+    try:
+        tweets_response = client.search_recent_tweets(
+            query=product,
+            start_time=start_time_str,
+            max_results=max_tweets,
+            sort_order="relevancy",
+            tweet_fields=["public_metrics", "created_at", "lang", "source"]
+        )
+    except Exception as e:
+        return {"success": False, "error": str(e)}
     
     # If no tweets are found, return an empty list.
     if tweets_response.data is None:
