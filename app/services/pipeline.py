@@ -38,9 +38,19 @@ def execute_workflow(
     try:
         # Step 1: Fetch Tweets
         tweets = fetch_tweets(product_name, time_period, max_tweets)
-        if not tweets:
+        if not tweets.get('success'):
+            metrics['time_taken'] = time.time() - start_time
+            return {
+                "success": False,
+                "error": tweets.get("error", "Unknown error"),
+                "stage": "Fetching Tweets",
+                "metrics": metrics
+            }
+        if not tweets.get('tweets'):
             metrics['time_taken'] = time.time() - start_time
             return {**result, "message": "No tweets found"}
+        
+        tweets = tweets['tweets']
         if isinstance(tweets, dict) and tweets.get("success") == False:
             metrics['time_taken'] = time.time() - start_time
             return {

@@ -26,3 +26,8 @@ class WorkflowResponse(BaseModel):
     stage: Optional[str] = None
     metrics: Metrics
     message: Optional[str] = None
+
+class TaskResponse(BaseModel):
+    task_id: str
+    status: str
+    result: WorkflowResponse | dict | None = None

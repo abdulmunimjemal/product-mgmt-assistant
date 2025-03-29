@@ -6,10 +6,6 @@ def get_or_create_board(api_key, token, board_id=None, board_name=None):
     Otherwise, if board_name is provided, search among the user's boards and return the matching board id.
     If no matching board is found, create a new board with that name.
     """
-    if board_id:
-        # Assume provided board_id is valid.
-        print(f"Using provided board ID: {board_id}")
-        return board_id
 
     if board_name:
         # Search for board by name among the user's boards.

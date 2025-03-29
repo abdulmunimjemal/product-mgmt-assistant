@@ -1,19 +1,12 @@
-import os
 import json
-from dotenv import load_dotenv
 import google.generativeai as genai 
+from app.core.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-load_dotenv()
-
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-if not GEMINI_API_KEY:
-    raise ValueError("Missing GEMINI_API_KEY environment variable.")
-
+GEMINI_API_KEY = settings.GEMINI_API_KEY
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-2.0-flash")
 
