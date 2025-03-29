@@ -56,7 +56,7 @@ def fetch_tweets(product: str, time_period: str, max_tweets: int = 10):
     
     # If no tweets are found, return an empty list.
     if tweets_response.data is None:
-        return []
+        return {"success": True, "tweets": []}
     
     tweets = tweets_response.data
 
@@ -73,4 +73,4 @@ def fetch_tweets(product: str, time_period: str, max_tweets: int = 10):
             }
         )
     
-    return formatted_tweets
+    return {"success": True, "tweets": formatted_tweets}
