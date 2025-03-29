@@ -1,6 +1,6 @@
-from services.x import fetch_tweets
-from services.gemini import post_to_card
-from services.trello import add_trello_card
+from app.services.x import fetch_tweets
+from app.services.gemini import post_to_card
+from app.services.trello import add_trello_card
 import logging
 import time
 
